@@ -1,0 +1,200 @@
+---
+- name: "Caso Practico 2 Apartado a"
+  hosts: webservers
+  remote_user: conte
+  become: true
+  vars_files:
+    - vars/vars.yaml
+  tasks:
+    - name: "Tarea 1. Instalacion rpm podman"
+      yum:
+        name: "{{ rpm1 }}"
+        state: latest
+
+    - name: "Tarea 2. Instalacion rpm httpd-tools"
+      yum:
+        name: "{{ rpm2 }}"
+        state: latest
+        
+    - name: "Tarea 3. Instalacion rpm openssl"
+      yum:
+        name: "{{ rpm3 }}"
+        state: latest
+    
+    - name: "Tarea 4. Instalacion rpm skopeo"
+      yum:
+        name: "{{ rpm4 }}"
+        state: latest
+            
+    - name: "Tarea 5. Fallo instalacion modulo passlib. Uso shell para crear base de datos con usuario y password "
+      ansible.builtin.shell:
+        cmd: htpasswd -cBb .creden "{{ usu01 }}" "{{ pass01 }}"
+        chdir: /home/conte/ 
+    
+    - name: "Tarea 6. Generar an OpenSSL private key with a different size (2048 bits)"
+      community.crypto.openssl_privatekey:
+        path: /home/conte/localhost.key
+        size: 2048
+        
+    - name: "Tarea 7. Generar an OpenSSL Certificate Signing Request"
+      community.crypto.openssl_csr:
+        path: /home/conte/localhost.csr
+        privatekey_path: /home/conte/localhost.key
+        country_name: "{{ ciudad }}"
+        organization_name: "{{ organizacion }}"
+        email_address: "{{ correo }}"
+        common_name: "{{ cm }}"
+    
+    - name: "Tarea 8. Generar a Self Signed OpenSSL certificate"
+      community.crypto.x509_certificate:
+        path: /home/conte/localhost.crt
+        privatekey_path: /home/conte/localhost.key
+        csr_path: /home/conte/localhost.csr
+        provider: selfsigned
+        
+    - name: "Tarea 9. Copiar fichero index.html"
+      ansible.builtin.copy:
+        src: /home/usuario1/ansible/casopractico2/index.html
+        dest: /home/conte/index.html
+        owner: conte
+        group: conte
+        mode: u=rwx,g=rwx,o=r
+        
+    - name: "Tarea 10. Copiar fichero httpd.conf"
+      ansible.builtin.copy:
+        src: /home/usuario1/ansible/casopractico2/httpd.conf
+        dest: /home/conte/httpd.conf
+        owner: conte
+        group: conte
+        mode: u=rwx,g=rwx,o=r
+        
+    - name: "Tarea 11. Copiar fichero .htaccess"
+      ansible.builtin.copy:
+        src: /home/usuario1/ansible/casopractico2/.htaccess
+        dest: /home/conte/.htaccess
+        owner: conte
+        group: conte
+        mode: u=rwx,g=rwx,o=r
+        
+    - name: "Tarea 12. Copiar fichero Containerfile"
+      ansible.builtin.copy:
+        src: /home/usuario1/ansible/casopractico2/Containerfile
+        dest: /home/conte/Containerfile
+        owner: conte
+        group: conte
+        mode: u=rwx,g=rwx,o=r
+        
+    - name: "Tarea 13. Construir imagen básica"
+      containers.podman.podman_image:
+        name: servidorweb
+        path: /home/conte
+    
+    - name: "Tarea 14. Etiquetar imagen"
+      containers.podman.podman_tag:
+        image: localhost/servidorweb
+        target_names:
+          - localhost/servidorweb    
+          - dgmojeda.azurecr.io/servidorweb:casopractico2
+          
+    - name: "Tarea 15. Login en el registry dgmojedano.azurecr.io"
+      containers.podman.podman_login:
+        username: "{{ usureg }}"
+        password: "{{ passreg }}"
+        registry: "{{ regis }}"
+        
+    - name: "Tarea 16. Subo imagen al acr privado"
+      containers.podman.podman_image:
+        name: dgmojeda.azurecr.io/servidorweb:casopractico2
+        push: true
+        push_args:
+          dest: "{{ regis }}"
+          
+    - name: "Tarea 17. Borrado imagen local docker.io/library/httpd "
+      containers.podman.podman_image:
+        name: "{{ imagen_apache }}"
+        state: absent
+    
+    - name: "Tarea 18. Borrado imagen local localhost/servidorweb "
+      containers.podman.podman_image:
+        name: localhost/servidorweb
+        state: absent
+        
+    - name: "Tarea 19. Borrado imagen dgmojeda.azurecr.io/servidorweb "
+      containers.podman.podman_image:
+        name: dgmojeda.azurecr.io/servidorweb
+        state: absent
+       
+    - name: "Tarea 20. Creo el contenedor desde la imagen del registry "
+      containers.podman.podman_container:
+        name: web
+        image: dgmojeda.azurecr.io/servidorweb:casopractico2
+        state: stopped
+        ports:
+        - "8080:443"
+        
+    - name: "Tarea 21. Re-crear el contenedor web con systemd service file"
+      containers.podman.podman_container:
+        name: web
+        recreate: true
+        generate_systemd:
+          path: /etc/systemd/system/
+          restart_policy: on-failure
+    
+    - name: "Tarea 22. Restart servicio del S.O. systemctl"
+      ansible.builtin.systemd:
+        state: restarted
+        daemon_reload: true
+        name: container-web.service
+        
+    - name: "Tarea 23. Enable service container-web.service"
+      ansible.builtin.systemd:
+        name: container-web.service
+        enabled: true
+
+- name: "Caso Practico 2 Apartado b"
+  hosts: localhost
+  remote_user: usuario1
+  vars_files:
+    - vars/vars.yaml
+  tasks:
+    - name: 'Tarea 24. Obtener credenciales cluster'
+      shell: 'az aks get-credentials --resource-group cp2-k8s --name kck8s --overwrite-existing'
+      
+    - name: ' Tarea 25. Descargar imagen oficial Nginx'
+      containers.podman.podman_image:
+        name: "{{ imagen_nginx }}"
+        
+    - name: "Tarea 26. Etiquetar imagen"
+      containers.podman.podman_tag:
+        image: "{{ imagen_nginx }}"
+        target_names:
+          - "{{ imagen_nginx }}"   
+          - dgmojeda.azurecr.io/ng:casopractico2
+    
+    - name: "Tarea 27. Login en el registry dgmojedano.azurecr.io"
+      containers.podman.podman_login:
+        username: "{{ usureg }}"
+        password: "{{ passreg }}"
+        registry: "{{ regis }}"
+          
+    - name: "Tarea 28. Subir imagen al acr privado"
+      containers.podman.podman_image:
+        name: dgmojeda.azurecr.io/ng:casopractico2
+        push: true
+        push_args:
+          dest: "{{ regis }}"
+          
+    - name: "Tarea 29. Borrado imagen local dgmojeda.azurecr.io/ng:casopractico2 "
+      containers.podman.podman_image:
+        name: dgmojeda.azurecr.io/ng:casopractico2
+        state: absent
+        
+    - name: "Tarea 30. Borrado imagen local docker.io/library/nginx "
+      containers.podman.podman_image:
+        name: docker.io/library/nginx
+        state: absent
+        
+    - name: "Tarea 31. Crear aplicacion Ngnix cuyo directorio principal tenga almacenamiento persistente de 1GB"
+      kubernetes.core.k8s:
+        state: present
+        src: /home/usuario1/ansible/casopractico2/nginx-persistente.yaml

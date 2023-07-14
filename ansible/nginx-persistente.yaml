@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: almacen-persistente-nginx
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: almacen-persistente-nginx
+  template:
+    metadata:
+      labels:
+        app: almacen-persistente-nginx
+    spec:
+      nodeSelector:
+        "kubernetes.io/os": linux
+      volumes:
+        - name: pv-storage-nginx
+          persistentVolumeClaim:
+            claimName: pvc-managed-csi
+      containers:
+      - name: almacen-persistente-nginx
+        image: dgmojeda.azurecr.io/ng:casopractico2
+        resources:
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          limits:
+            cpu: 250m
+            memory: 256Mi
+        ports:
+        - containerPort: 80
+          name: "http-server"
+        volumeMounts:
+          - mountPath: "/usr/share/nginx/html"
+            name: pv-storage-nginx
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: almacen-persistente-nginx
+  namespace: default
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: almacen-persistente-nginx
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: pvc-managed-csi
+  namespace: default
+spec:
+  storageClassName: managed-csi
+  resources:
+    requests:
+      storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
