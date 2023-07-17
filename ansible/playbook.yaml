@@ -1,5 +1,5 @@
 ---
-- name: "Caso Practico 2 Apartado a"
+- name: "Caso Practico 2. -- Apartado A --"
   hosts: webservers
   remote_user: conte
   become: true
@@ -26,7 +26,7 @@
         name: "{{ rpm4 }}"
         state: latest
             
-    - name: "Tarea 5. Fallo instalacion modulo passlib. Uso shell para crear base de datos con usuario y password "
+    - name: "Tarea 5. Problema con pip3 instalacion modulo passlib. Uso shell para crear usuario y password "
       ansible.builtin.shell:
         cmd: htpasswd -cBb .creden "{{ usu01 }}" "{{ pass01 }}"
         chdir: /home/conte/ 
@@ -54,7 +54,7 @@
         
     - name: "Tarea 9. Copiar fichero index.html"
       ansible.builtin.copy:
-        src: /home/usuario1/ansible/casopractico2/index.html
+        src: index.html
         dest: /home/conte/index.html
         owner: conte
         group: conte
@@ -62,7 +62,7 @@
         
     - name: "Tarea 10. Copiar fichero httpd.conf"
       ansible.builtin.copy:
-        src: /home/usuario1/ansible/casopractico2/httpd.conf
+        src: httpd.conf
         dest: /home/conte/httpd.conf
         owner: conte
         group: conte
@@ -70,7 +70,7 @@
         
     - name: "Tarea 11. Copiar fichero .htaccess"
       ansible.builtin.copy:
-        src: /home/usuario1/ansible/casopractico2/.htaccess
+        src: .htaccess
         dest: /home/conte/.htaccess
         owner: conte
         group: conte
@@ -78,7 +78,7 @@
         
     - name: "Tarea 12. Copiar fichero Containerfile"
       ansible.builtin.copy:
-        src: /home/usuario1/ansible/casopractico2/Containerfile
+        src: Containerfile
         dest: /home/conte/Containerfile
         owner: conte
         group: conte
@@ -151,7 +151,7 @@
         name: container-web.service
         enabled: true
 
-- name: "Caso Practico 2 Apartado b"
+- name: "Caso Practico 2. -- Apartado B. --"
   hosts: localhost
   remote_user: usuario1
   vars_files:
@@ -194,7 +194,7 @@
         name: docker.io/library/nginx
         state: absent
         
-    - name: "Tarea 31. Crear aplicacion Ngnix cuyo directorio principal tenga almacenamiento persistente de 1GB"
+    - name: "Tarea 31. Crear aplicacion Ngnix, directorio principal /usr/share/nginx/html con almacenamiento persistente de 1GB"
       kubernetes.core.k8s:
         state: present
         src: /home/usuario1/ansible/casopractico2/nginx-persistente.yaml
